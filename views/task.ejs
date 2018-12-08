@@ -22,6 +22,12 @@
   <div class="container">
     <div class="row">
       <div class="col">
+        <% if (!task.completed_on && assignees && assignees.length !== 0 && assignees[0].assignee_id === employeeID) { %>
+          <form action="/task/<%= task.task_id %>" method="post">
+            <input type="hidden" name="action" value="complete">
+            <button class="btn btn-block btn-success mt-3" type="submit">Complete</button>
+          </form>
+        <% } %>
         <div class="card my-3">
           <h5 class="card-header px-3"><%= task.identifier() %></h5>
           <div class="card-body">
@@ -47,7 +53,7 @@
               <dt class="col-sm-4 col-md-3">Step Description</dt>
               <dd class="col-sm-8 col-md-9"><p><%= task.stepDescription %></p></dd>
 
-              <dt class="col-sm-4 col-md-3">Step Name</dt>
+              <dt class="col-sm-4 col-md-3">Blocker</dt>
               <dd class="col-sm-8 col-md-9">
                 <% if (blocker) { %>
                   <a href="<%= blocker.task_id %>"><%= blocker.identifier() %></a>
@@ -55,7 +61,101 @@
                   None
                 <% } %>
               </dd>
+
+              <dt class="col-sm-4 col-md-3">Completed</dt>
+              <dd class="col-sm-8 col-md-9"><%= task.completed_on || 'None' %></dd>
             </dl>
+          </div>
+        </div>
+        <div class="card my-3">
+          <h5 class="card-header px-3">Assignees</h5>
+          <div class="card-body">
+            <% if (!assignees || assignees.length == 0) { %>
+              <p>Nobody assigned to task</p>
+              <% if (!blocker) { %>
+                <% if (role === 'worker') { %>
+                  <form action="/task/<%= task.task_id %>" method="POST">
+                    <input type="hidden" name="action" value="assign">
+                    <input type="hidden" name="worker" value="<%= employeeID %>">
+                    <button class="btn btn-primary" type="submit">Assign Self</button>
+                  </form>
+                <% } else { %>
+                  <form action="/task/<%= task.task_id %>" method="POST">
+                    <input type="hidden" name="action" value="assign">
+                    <div class="form-group">
+                      <select class="form-control" name="worker">
+                        <% for (worker of workers) { %>
+                          <option value="<%= worker.employee_id %>"><%= worker.name %></option>
+                        <% } %>
+                      </select>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Assign</button>
+                  </form>
+                <% } %>
+              <% } else { %>
+                <p>Blocker must be completed before a worker can be assigned</p>
+              <% } %>
+            <% } else { %>
+              <table class="table shadow">
+                <thead>
+                  <tr class="table-secondary">
+                    <th scope="col">Assignee</th>
+                    <th scope="col">Assigner</th>
+                    <th scope="col">Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% for (const assignee of assignees) {%>
+                    <tr class="table-secondary">
+                      <th scope="row"><%= assignee.assignee_name %></th>
+                      <td><%= assignee.assigner_name %></td>
+                      <td><%= assignee.assigned_on %></td>
+                    </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            <% } %>
+          </div>
+        </div>
+        <div class="card my-3">
+          <h5 class="card-header px-3">Information Requests</h5>
+          <div class="card-body">
+            <% if (requests.length === 0) { %>
+              <p>No information requests</p>
+            <% } else { %>
+              <table class="table shadow">
+                <thead>
+                  <tr class="table-secondary">
+                    <th scope="col">Requested</th>
+                    <th scope="col">Requester</th>
+                    <th scope="col">Manager</th>
+                    <th scope="col">Info</th>
+                    <th scope="col">Reply</th>
+                  </tr>
+                </thead>
+                <tbody>
+                <% for (const request of requests) { %>
+                  <tr class="table-secondary">
+                    <td><%= request.requested_on.toISOString() %></td>
+                    <td><%= request.requester %></td>
+                    <td><%= request.manager %></td>
+                    <td><%= request.requested_info %></td>
+                    <td><%= request.completed_info || 'None' %></td>
+                  </tr>
+                <% } %>
+                </tbody>
+              </table>
+            <% } %>
+            <% if (role === 'worker' && assignees && assignees.length !== 0 && assignees[0].assignee_id === employeeID && !task.completed_on) { %>
+              <form action="/task/<%= task.task_id %>" method="POST">
+                <input type="hidden" name="worker" value="<%= employeeID %>" >
+                <div class="form-group">
+                  <textarea class="form-control" name="info" rows="3"></textarea>
+                </div>
+                <input type="hidden" name="action" value="request">
+                <button type="submit" class="btn btn-primary">Submit</button>
+              </form>
+            <% } %>
           </div>
         </div>
       </div>

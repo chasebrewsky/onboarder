@@ -1,14 +1,6 @@
 const { Model } = require('objection');
 
-Model.knex(require('knex')({
-  client: 'pg',
-  connection: {
-    host : '127.0.0.1',
-    user : 'onboarding',
-    password : 'onboarding',
-    database : 'onboarding'
-  },
-}));
+Model.knex(require('knex')(require('../knexfile')));
 
 class Employee extends Model {
   static get tableName() { return 'employees'; }
@@ -234,7 +226,7 @@ class Implementation extends Model {
     };
   }
 
-  identifier() { return `${this.serviceName}: ${this.clientName}` };
+  identifier() { return `${this.serviceName} ${this.implementation_id}: ${this.clientName}` };
   static get relationMappings() {
     return {
       service: {
@@ -281,7 +273,16 @@ class Task extends Model {
   static get tableName() { return 'tasks'; }
   static get idColumn() { return 'task_id'; }
 
-  identifier() { return `${this.serviceName}: ${this.clientName} | ${this.stepName}` }
+  identifier() { return `${this.serviceName} ${this.implementationID}: ${this.clientName} | ${this.stepName}` }
+
+  getManagerID() {
+    return Task
+      .query()
+      .select('client.managed_by')
+      .joinRelation('client')
+      .first()
+      .then(row => row.managed_by);
+  }
 
   static get relationMappings() {
     return {
@@ -382,6 +383,63 @@ class TaskAssignment extends Model {
   }
 }
 
+class InformationRequests extends Model {
+  static get tableName() { return 'information_requests'; }
+  static get idColumn() { return 'request_id'; }
+  static get relationMappings() {
+    return {
+      task: {
+        relation: Model.HasOneRelation,
+        modelClass: Task,
+        join: {
+          from: 'information_requests.task_id',
+          to: 'tasks.task_id'
+        }
+      },
+      requester: {
+        relation: Model.HasOneRelation,
+        modelClass: Employee,
+        join: {
+          from: 'information_requests.requested_by',
+          to: 'employees.employee_id',
+        },
+      },
+      step: {
+        relation: Model.HasOneThroughRelation,
+        modelClass: Step,
+        join: {
+          from: 'information_requests.task_id',
+          through: {
+            from: 'tasks.task_id',
+            to: 'tasks.step_id',
+          },
+          to: 'steps.step_id',
+        },
+      },
+      implementation: {
+        relation: Model.HasOneThroughRelation,
+        modelClass: Implementation,
+        join: {
+          from: 'information_requests.task_id',
+          through: {
+            from: 'tasks.task_id',
+            to: 'tasks.implementation_id',
+          },
+          to: 'implementations.implementation_id',
+        },
+      },
+      assignee: {
+        relation: Model.HasOneRelation,
+        modelClass: Employee,
+        join: {
+          from: 'information_requests.assigned_to',
+          to: 'employees.employee_id',
+        },
+      },
+    };
+  }
+}
+
 module.exports = {
   Employee,
   Worker,
@@ -392,4 +450,5 @@ module.exports = {
   Implementation,
   Task,
   TaskAssignment,
+  InformationRequests,
 };

@@ -1,0 +1,71 @@
+<%- include('header'); -%>
+<body class="h-100">
+  <div class="bg-primary">
+    <div class="container">
+      <nav class="navbar navbar-expand-lg navbar-light m-0">
+        <span class="navbar-brand mb-0 h1">Onboarding</span>
+        <div class="collapse navbar-collapse">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item"><a class="nav-link" href="/">Tasks</a></li>
+            <% if (role === 'manager') { %>
+              <li class="nav-item active"><a class="nav-link" href="/manage">Manage</a></li>
+            <% } %>
+          </ul>
+          <span class="mb-0 my-sm-0">
+            <span><% name %></span>
+            <a class="btn btn-outline-dark ml-2" href="/logout" role="button">Logout</a>
+          </span>
+        </div>
+      </nav>
+    </div>
+  </div>
+  <div class="container">
+    <div class="row py-3">
+      <div class="col">
+        <ul class="nav nav-pills">
+          <li class="nav-item"><a class="nav-link" href="/manage">Clients</a></li>
+          <li class="nav-item"><a class="nav-link" href="/manage/implementation">Implementations</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/manage/requests">Requests</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <div class="card mb-3">
+          <h5 class="card-header px-3">Information Requests</h5>
+          <% if (!requests || requests.length === 0) { %>
+            <p class="px-3 pt-3">No information requests</p>
+          <% } else { %>
+            <div class="card-body">
+            <% for (const request of requests) {%>
+              
+              <div class="row py-3 mx-2 mb-3 shadow border-secondary bg-secondary rounded">
+                <div class="col-7">
+                  <div class="d-flex border-bottom border-dark">
+                    <div class="p-2 flex-fill">
+                      <a href="/task/<%= request.task_id %>">
+                        <%= `Implementation ${request.implementation_id}: ${request.step_name}` %>
+                      </a>
+                    </div>
+                    <div class="p-2"><%= request.requester %></div>
+                  </div>
+                  <p class="p-2"><%= request.requested_info %></p>
+                </div>
+                <div class="col-5">
+                  <form action="/manage/requests" method="post">
+                    <div class="form-group">
+                      <textarea class="form-control" name="reply" rows="3"></textarea>
+                    </div>
+                    <input type="hidden" name="request" value="<%= request.request_id %>">
+                    <button type="submit" class="btn btn-primary btn-block">Submit</button>
+                  </form>
+                </div>
+              </div>
+            <% } %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>

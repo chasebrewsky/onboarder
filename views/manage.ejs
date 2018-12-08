@@ -25,6 +25,7 @@
         <ul class="nav nav-pills">
           <li class="nav-item"><a class="nav-link active" href="/manage">Clients</a></li>
           <li class="nav-item"><a class="nav-link" href="/manage/implementation">Implementations</a></li>
+          <li class="nav-item"><a class="nav-link" href="/manage/requests">Requests</a></li>
         </ul>
       </div>
     </div>
@@ -35,34 +36,11 @@
           <% if (!clients || clients.length === 0) { %>
             <p class="px-3 pt-3">No assigned clients</p>
           <% } else { %>
-            <div class="card-body p-0">
-              <table class="table">
+            <div class="card-body">
+              <table class="table shadow">
                 <tbody>
                   <% for (const client of clients) {%>
-                    <tr>
-                      <th scope="row"><%= client.name %></th>
-                      <td><%= client.email %></td>
-                      <td><%= client.address %></td>
-                      <td>
-                        <a style="btn btn-primary" href="mailto:<%= client.email %>">Email</a>
-                      </td>
-                    </tr>
-                  <% } %>
-                </tbody>
-              </table>
-            </div>
-          <% } %>
-        </div>
-        <div class="card mb-3">
-          <h5 class="card-header px-3">Information Requests</h5>
-          <% if (!requests || requests.length === 0) { %>
-            <p class="px-3 pt-3">No information requests</p>
-          <% } else { %>
-            <div class="card-body p-0">
-              <table class="table">
-                <tbody>
-                  <% for (const request of requests) {%>
-                    <tr>
+                    <tr class="table-secondary">
                       <th scope="row"><%= client.name %></th>
                       <td><%= client.email %></td>
                       <td><%= client.address %></td>

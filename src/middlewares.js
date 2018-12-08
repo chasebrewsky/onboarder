@@ -13,11 +13,9 @@ module.exports.configure = (config) => (ctx, next) => {
 };
 
 module.exports.authenticated = (redirectURL) => (ctx, next) => {
-  ctx.logger.info(`${ctx.path} AUTHENTICATED ${ctx.session.authenticated}`)
   return ctx.session.authenticated == true ? next() : ctx.redirect(redirectURL || ctx.loginURL);
 }
 
 module.exports.unauthenticated = (redirectURL) => (ctx, next) => {
-  ctx.logger.info(`${ctx.path} UMAUTHENTICATED ${!ctx.session.authenticated}`)
   return !ctx.session.authenticated == true ? next() : ctx.redirect(redirectURL || ctx.homeURL);
 };

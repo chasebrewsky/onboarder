@@ -67,22 +67,55 @@ router.post('/login', async (ctx) => {
   return ctx.redirect(ctx.homeURL);
 });
 
-
-
-router.use('/', middlewares.authenticated())
-router.get('/', async ctx => {
-  const assigned = await models.Task
+async function getassigned(ctx) {
+  const query = models.Task
     .query()
-    .where('tasks.task_id', '=', models.TaskAssignment.query()
+    .select(
+      'tasks.task_id',
+      'service.name as serviceName',
+      'step.name as stepName',
+      'step.blocked_by as parent_step',
+      'implementation.implementation_id as implementationID',
+      'client.name as clientName'
+    )
+    .whereNull('completed_on')
+    .joinRelation('service')
+    .joinRelation('implementation')
+    .joinRelation('step')
+    .joinRelation('client');
+
+  if (ctx.session.role === 'manager') {
+    query.whereIn('tasks.task_id', models.TaskAssignment.query().distinct('task_id'));
+  } else {
+    query.whereIn('tasks.task_id', models.TaskAssignment.query()
       .select('task_id')
       .where('assigned_to', '=', ctx.session.employeeID)
       .orderBy('assigned_on')
       .first()
+    );
+  }
+
+  return await query;
+}
+
+router.use('/', middlewares.authenticated())
+router.get('/', async ctx => {
+  const assigned = await getassigned(ctx);
+
+  const completed = await models.Task
+    .query()
+    .select(
+      'tasks.task_id',
+      'service.name as serviceName',
+      'step.name as stepName',
+      'implementation.implementation_id as implementationID',
+      'client.name as clientName'
     )
-    .whereNull('completed_on')
-    .joinRelation('assigned_to')
+    .whereNotNull('completed_on')
     .joinRelation('implementation')
-    .joinRelation('step');
+    .joinRelation('step')
+    .joinRelation('service')
+    .joinRelation('client');
   
   const unassigned = await models.Task
     .query()
@@ -90,6 +123,7 @@ router.get('/', async ctx => {
       'tasks.task_id',
       'service.name as serviceName',
       'step.name as stepName',
+      'step.blocked_by as parent_step',
       'implementation.implementation_id as implementationID',
       'client.name as clientName'
     )
@@ -108,49 +142,185 @@ router.get('/', async ctx => {
     role: ctx.session.role,
     assigned: assigned,
     unassigned: unassigned,
+    completed: completed,
   });
 });
 
-router.get('/task/:id', async ctx => {
-  const task = await models.Task
-    .query()
-    .select(
-      'tasks.task_id',
-      'tasks.notes',
-      'service.name as serviceName',
-      'service.description as serviceDescription',
-      'step.name as stepName',
-      'step.description as stepDescription',
-      'implementation.implementation_id as implementationID',
-      'implementation.notes as implementationNotes',
-      'client.name as clientName',
-    )
-    .where('tasks.task_id', '=', ctx.params.id)
-    .joinRelation('implementation')
-    .joinRelation('step')
-    .joinRelation('service')
-    .joinRelation('client')
-    // .joinRelation('assigned_to')
-    .first()
-    .then(row => row);
+function taskval(taskID) {
+  return models.Task
+  .query()
+  .select(
+    'tasks.task_id',
+    'tasks.notes',
+    'tasks.completed_on',
+    'service.name as serviceName',
+    'service.description as serviceDescription',
+    'step.name as stepName',
+    'step.blocked_by as parent_step',
+    'step.description as stepDescription',
+    'implementation.implementation_id as implementationID',
+    'implementation.notes as implementationNotes',
+    'client.name as clientName',
+  )
+  .where('tasks.task_id', '=', taskID)
+  .joinRelation('implementation')
+  .joinRelation('step')
+  .joinRelation('service')
+  .joinRelation('client')
+  .first()
+  .then(row => row);
+}
 
-  if (!task) return ctx.render('404');
-
+async function taskdata(task) {
   const assignees = await models.TaskAssignment
     .query()
     .select(
       'task_assignments.assigned_on',
-      'assignee.name'
+      'assigner.name as assigner_name',
+      'assignee.name as assignee_name',
+      'assignee.employee_id as assignee_id',
     )
-    .where('task_assignments.task_id', task.task_id)
+    .where('task_assignments.task_id', '=', task.task_id)
+    .orderBy('task_assignments.assigned_on')
+    .joinRelation('assignee')
+    .joinRelation('assigner');
+
+  const workers = await models.Worker
+    .query()
+    .select(
+      'employee.employee_id as employee_id',
+      'employee.name as name',
+    )
+    .joinRelation('employee');
+
+  let blocker;
+
+  if (task.parent_step) {
+    blocker = await models.Task
+    .query()
+    .select(
+      'tasks.task_id',
+      'tasks.completed_on',
+      'service.name as serviceName',
+      'step.name as stepName',
+      'client.name as clientName',
+    )
+    .joinRelation('step')
+    .joinRelation('service')
+    .joinRelation('client')
+    .where('tasks.step_id', '=', task.parent_step)
+    .where('tasks.implementation_id', '=', task.implementationID)
+    .first()
+    .then(row => row);
+  }
+
+  const requests = await models.InformationRequests
+    .query()
+    .select(
+      'information_requests.requested_on',
+      'information_requests.requested_info',
+      'information_requests.completed_info',
+      'requester.name as requester',
+      'assignee.name as manager',
+    )
+    .where('information_requests.task_id', '=', task.task_id)
+    .joinRelation('requester')
     .joinRelation('assignee');
-  
-  console.log(assignees);
-  console.log(task);
+
+  if (blocker && blocker.completed_on) blocker = undefined;
+
+  return {
+    assignees,
+    workers,
+    blocker,
+    requests,
+  }
+}
+
+router.get('/task/:id', async ctx => {
+  const task = await taskval(ctx.params.id);
+
+  if (!task) return ctx.render('404');
+
+  const data = await taskdata(task);
+
   return ctx.render('task', {
     name: ctx.session.name,
     role: ctx.session.role,
     task: task,
+    blocker: data.blocker,
+    assignees: data.assignees,
+    workers: data.workers,
+    requests: data.requests,
+    employeeID: ctx.session.employeeID,
+  });
+});
+
+async function requestinfo(ctx, task) {
+  const { worker, info } = ctx.request.body;
+  const manager = await task.getManagerID();
+  return transaction(models.InformationRequests.knex(), async (trx) => {
+    await models.InformationRequests
+      .query(trx)
+      .insert({
+        task_id: task.task_id,
+        requested_by: parseInt(worker),
+        assigned_to: manager,
+        requested_info: info,
+      });
+  });
+}
+
+async function assigntask(ctx, task) {
+  const { worker } = ctx.request.body;
+  return transaction(models.TaskAssignment.knex(), async (trx) => {
+    await models.TaskAssignment
+      .query(trx)
+      .insert({
+        task_id: task.task_id,
+        assigned_by: ctx.session.employeeID,
+        assigned_to: parseInt(worker),
+      });
+  });
+}
+
+async function completetask(task) {
+  return transaction(models.Task.knex(), async (trx) => {
+    await models.Task
+      .query(trx)
+      .where('task_id', '=', task.task_id)
+      .update({ completed_on: new Date() });
+  });
+}
+
+router.post('/task/:id', async ctx => {
+  const task = await taskval(ctx.params.id);
+
+  if (!task) return ctx.render('404');
+
+  const { action } = ctx.request.body;
+  if (!action) throw new Error('action missing in task POST');
+
+  switch (action) {
+    case 'assign': await assigntask(ctx, task); break;
+    case 'request': await requestinfo(ctx, task); break;
+    case 'complete':
+      await completetask(task)
+      return ctx.redirect(ctx.homeURL);
+    default: throw new Error(`action ${action} is not valid`);
+  }
+
+  const data = await taskdata(task);
+
+  return ctx.render('task', {
+    name: ctx.session.name,
+    role: ctx.session.role,
+    task: task,
+    blocker: data.blocker,
+    assignees: data.assignees,
+    workers: data.workers,
+    requests: data.requests,
+    employeeID: ctx.session.employeeID,
   });
 });
 
@@ -164,13 +334,15 @@ router.get('/manage', async ctx => {
     .query()
     .where('managed_by', '=', ctx.session.employeeID);
 
-  // const requests = await models.
-  
+  const requests = await models.InformationRequests
+    .query()
+    .where('information_requests.assigned_to', '=', ctx.session.employeeID);
+
   return ctx.render('manage', {
     clients: clients,
     role: ctx.session.role,
     name: ctx.session.name,
-    requests: [],
+    requests: requests,
   });
 });
 
@@ -202,6 +374,57 @@ router.get('/manage/implementation', async ctx => {
     implementations: ctx.implementations,
     role: ctx.session.role,
     name: ctx.session.name,
+  });
+});
+
+async function getrequests(ctx) {
+  return models.InformationRequests
+    .query()
+    .select(
+      'information_requests.request_id',
+      'requester.name as requester',
+      'information_requests.requested_on',
+      'information_requests.task_id',
+      'implementation.implementation_id',
+      'step.name as step_name',
+      'information_requests.requested_info',
+    )
+    .where('information_requests.assigned_to', '=', ctx.session.employeeID)
+    .whereNull('information_requests.completed_on')
+    .joinRelation('task')
+    .joinRelation('requester')
+    .joinRelation('step')
+    .joinRelation('implementation');
+}
+
+router.get('/manage/requests', async ctx => {
+  const requests = await getrequests(ctx);
+
+  return ctx.render('requests', {
+    name: ctx.session.name,
+    role: ctx.session.role,
+    requests: requests,
+  });
+});
+
+router.post('/manage/requests', async ctx => {
+  const { reply, request } = ctx.request.body;
+
+  await transaction(models.InformationRequests.knex(), async (trx) => {
+    await models.InformationRequests
+      .query(trx)
+      .where('request_id', '=', parseInt(request))
+      .update({
+        completed_on: new Date(),
+        completed_info: reply,
+      });
+  });
+
+  const requests = await getrequests(ctx);
+  return ctx.render('requests', {
+    name: ctx.session.name,
+    role: ctx.session.role,
+    requests: requests,
   });
 });
 
