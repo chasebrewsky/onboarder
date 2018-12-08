@@ -1,0 +1,64 @@
+<%- include('header'); -%>
+<body class="h-100">
+  <div class="bg-primary">
+    <div class="container">
+      <nav class="navbar navbar-expand-lg navbar-light m-0">
+        <span class="navbar-brand mb-0 h1">Onboarding</span>
+        <div class="collapse navbar-collapse">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item active"><a class="nav-link" href="/">Tasks</a></li>
+            <% if (role == 'manager') { %>
+              <li class="nav-item"><a class="nav-link" href="/manage">Manage</a></li>
+            <% } %>
+          </ul>
+          <span class="mb-0 my-sm-0">
+            <span><% name %></span>
+            <a class="btn btn-outline-dark ml-2" href="/logout" role="button">Logout</a>
+          </span>
+        </div>
+      </nav>
+    </div>
+  </div>
+  <div class="container">
+    <div class="row">
+      <div class="col">
+        <div class="card my-3">
+          <h5 class="card-header px-3"><%= task.identifier() %></h5>
+          <div class="card-body">
+            <dl class="row">
+              <dt class="col-sm-4 col-md-3">Client</dt>
+              <dd class="col-sm-8 col-md-9"><p><%= task.clientName %></p></dd>
+
+              <dt class="col-sm-4 col-md-3">Implementation ID</dt>
+              <dd class="col-sm-8 col-md-9"><%= task.implementationID %></dd>
+            
+              <dt class="col-sm-4 col-md-3">Implementation Notes</dt>
+              <dd class="col-sm-8 col-md-9"><p><%= task.implementationNotes || 'None' %></p></dd>
+
+              <dt class="col-sm-4 col-md-3">Service Name</dt>
+              <dd class="col-sm-8 col-md-9"><%= task.serviceName %></dd>
+            
+              <dt class="col-sm-4 col-md-3">Service Description</dt>
+              <dd class="col-sm-8 col-md-9"><p><%= task.serviceDescription %></p></dd>
+            
+              <dt class="col-sm-4 col-md-3">Step Name</dt>
+              <dd class="col-sm-8 col-md-9"><%= task.stepName %></dd>
+
+              <dt class="col-sm-4 col-md-3">Step Description</dt>
+              <dd class="col-sm-8 col-md-9"><p><%= task.stepDescription %></p></dd>
+
+              <dt class="col-sm-4 col-md-3">Step Name</dt>
+              <dd class="col-sm-8 col-md-9">
+                <% if (blocker) { %>
+                  <a href="<%= blocker.task_id %>"><%= blocker.identifier() %></a>
+                <% } else { %>
+                  None
+                <% } %>
+              </dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

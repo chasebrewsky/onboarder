@@ -1,0 +1,32 @@
+<%- include('header'); -%>
+<body class="h-100">
+  <div class="container-fluid h-100">
+    <div class="row h-100">
+      <div class="col px-0 h-100" style="background-image: url('public/images/dunbar_cybersecurity.jpg'); background-size: cover; background-repeat: no-repeat; background-position: right;"></div>
+      <div class="col px-0 h-100 border-left border-secondary" style="max-width: 400px;">
+        <h3 class="p-3 bg-secondary">Onboarding Login</h3>
+        <div class="p-3">
+          <form action="/login", method="POST">
+            <% if (errors.detail) { %>
+              <div class="alert alert-danger" role="alert"><% errors.detail %></div>
+            <% } %>
+            <div class="form-group">
+              <input type="email" class="form-control <% if (errors.email) { %>is-invalid<% } %>" id="email" name="email" placeholder="Email" required>
+              <% for (error in errors.email) { %>
+                <div class="invalid-feedback"><% error %></div>
+              <% } %>
+            </div>
+            <div class="form-group">
+              <input type="password" class="form-control <% if (errors.password) { %>is-invalid<% } %>" id="password" name="password" placeholder="Password" required>
+              <% for (error in errors.password) { %>
+                <div class="invalid-feedback"><% error %></div>
+              <% } %>
+            </div>
+            <button type="submit" class="btn btn-block btn-primary">Submit</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
